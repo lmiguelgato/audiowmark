@@ -1,13 +1,16 @@
 autom4te.cache/
+bin/
+lib/
+build/
 build-aux/
 m4/
 aclocal.m4
 configure
 config.h
-config.h.in
 config.log
 config.status
 Makefile
 Makefile.in
 libtool
 stamp-h1
+*.wav
