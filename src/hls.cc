@@ -18,10 +18,16 @@
 #include <string>
 #include <regex>
 
+#if HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
 #include <sys/wait.h>
+#if HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#if HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 #include "utils.hh"
 #include "mpegts.hh"

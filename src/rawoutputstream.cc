@@ -18,7 +18,9 @@
 #include "rawoutputstream.hh"
 
 #include <assert.h>
-#include <string.h>
+#if STDC_HEADERS
+#include <string.h>  // TODO: use <cstring> instead
+#endif
 #include <errno.h>
 
 using std::string;

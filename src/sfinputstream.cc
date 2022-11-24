@@ -18,8 +18,12 @@
 #include "sfinputstream.hh"
 
 #include <assert.h>
-#include <string.h>
+#if STDC_HEADERS
+#include <string.h>  // TODO: use <cstring> instead
+#endif
+#if HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 using std::string;
 using std::vector;

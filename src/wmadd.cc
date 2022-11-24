@@ -15,10 +15,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#if STDC_HEADERS
 #include <stdint.h>
+#endif
 
+#if HAVE_LIBZITA_RESAMPLER
 #include <zita-resampler/resampler.h>
 #include <zita-resampler/vresampler.h>
+#endif
 
 #include "wmcommon.hh"
 #include "fft.hh"
@@ -26,7 +30,9 @@
 #include "limiter.hh"
 #include "sfinputstream.hh"
 #include "sfoutputstream.hh"
+#if HAVE_MP3
 #include "mp3inputstream.hh"
+#endif
 #include "rawinputstream.hh"
 #include "rawoutputstream.hh"
 #include "stdoutwavoutputstream.hh"

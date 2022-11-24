@@ -19,7 +19,9 @@
 #define AUDIOWMARK_LIMITER_HH
 
 #include <vector>
+#if HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
 
 class Limiter
 {

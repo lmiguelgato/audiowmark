@@ -19,7 +19,9 @@
 #include "wmcommon.hh"
 #include "sfinputstream.hh"
 #include "sfoutputstream.hh"
+#if HAVE_MP3
 #include "mp3inputstream.hh"
+#endif
 #include "rawconverter.hh"
 #include "rawoutputstream.hh"
 #include "stdoutwavoutputstream.hh"
@@ -35,6 +37,7 @@ AudioInputStream::create (const string& filename, Error& err)
 {
   std::unique_ptr<AudioInputStream> in_stream;
 
+#if HAVE_MP3
   if (Params::input_format == Format::AUTO)
     {
       SFInputStream *sistream = new SFInputStream();
@@ -53,6 +56,7 @@ AudioInputStream::create (const string& filename, Error& err)
         return nullptr;
     }
   else
+#endif
     {
       RawInputStream *ristream = new RawInputStream();
       in_stream.reset (ristream);

@@ -19,7 +19,7 @@
 #include <map>
 #include <sstream>
 
-#include <sys/time.h>
+#include <sys/time.h> // TODO: use <ctime> or <chrono> instead
 #include <assert.h>
 
 #include "shortcode.hh"

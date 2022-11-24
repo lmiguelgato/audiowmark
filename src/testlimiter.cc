@@ -20,7 +20,9 @@
 #include <sndfile.h>
 #include <assert.h>
 #include <math.h>
-#include <string.h>
+#if STDC_HEADERS
+#include <string.h>  // TODO: use <cstring> instead
+#endif
 
 #include "sfinputstream.hh"
 #include "sfoutputstream.hh"

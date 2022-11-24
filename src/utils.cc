@@ -18,7 +18,7 @@
 #include "utils.hh"
 #include "stdarg.h"
 
-#include <sys/time.h>
+#include <sys/time.h> // TODO: use <ctime> or <chrono> instead
 
 using std::vector;
 using std::string;

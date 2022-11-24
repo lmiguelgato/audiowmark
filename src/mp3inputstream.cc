@@ -15,7 +15,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#if HAVE_MP3
 #include "mp3inputstream.hh"
+#endif
 
 #include <mpg123.h>
 #include <assert.h>

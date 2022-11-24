@@ -18,7 +18,9 @@
 #include "utils.hh"
 #include "random.hh"
 
+#if HAVE_INTTYPES_H
 #include <inttypes.h>
+#endif
 
 using std::vector;
 using std::string;

@@ -19,7 +19,10 @@
 #define AUDIOWMARK_RANDOM_HH
 
 #include <gcrypt.h>
+
+#if STDC_HEADERS
 #include <stdint.h>
+#endif
 
 #include <vector>
 #include <string>

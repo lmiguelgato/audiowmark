@@ -20,8 +20,10 @@
 #include <assert.h>
 #include <math.h>
 
+#if HAVE_LIBZITA_RESAMPLER
 #include <zita-resampler/resampler.h>
 #include <zita-resampler/vresampler.h>
+#endif
 
 using std::vector;
 

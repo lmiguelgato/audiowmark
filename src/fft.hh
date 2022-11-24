@@ -20,7 +20,9 @@
 
 #include <complex>
 #include <vector>
+#if SPECTMORPH_HAVE_FFTW
 #include <fftw3.h>
+#endif
 
 class FFTProcessor
 {

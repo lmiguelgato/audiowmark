@@ -15,6 +15,17 @@ set(OUTPUT_NAME audiowmark)
 set(PACKAGE_NAME "audiowmark")
 set(PACKAGE_VERSION "0.6.1")
 
+# Add cmake options:
+option(MP3_SUPPORT "Support MP3 audio format" OFF)
+option(HLS_SUPPORT "Support HTTP Live Streaming" OFF)
+
+message("-- MP3 support: ${MP3_SUPPORT}")
+message("-- HLS support: ${HLS_SUPPORT}")
+
+if(HLS_SUPPORT)
+    message(FATAL_ERROR "HTTP Live Streaming support is not yet implemented")
+endif()
+
 set(COMMON_SRC
     ${CMAKE_CURRENT_LIST_DIR}/src/utils.hh
     ${CMAKE_CURRENT_LIST_DIR}/src/utils.cc
@@ -38,8 +49,6 @@ set(COMMON_SRC
     ${CMAKE_CURRENT_LIST_DIR}/src/rawoutputstream.hh
     ${CMAKE_CURRENT_LIST_DIR}/src/rawconverter.cc
     ${CMAKE_CURRENT_LIST_DIR}/src/rawconverter.hh
-    ${CMAKE_CURRENT_LIST_DIR}/src/mp3inputstream.cc
-    ${CMAKE_CURRENT_LIST_DIR}/src/mp3inputstream.hh
     ${CMAKE_CURRENT_LIST_DIR}/src/wmcommon.cc
     ${CMAKE_CURRENT_LIST_DIR}/src/wmcommon.hh
     ${CMAKE_CURRENT_LIST_DIR}/src/fft.cc
@@ -50,8 +59,6 @@ set(COMMON_SRC
     ${CMAKE_CURRENT_LIST_DIR}/src/shortcode.hh
     ${CMAKE_CURRENT_LIST_DIR}/src/mpegts.cc
     ${CMAKE_CURRENT_LIST_DIR}/src/mpegts.hh
-    ${CMAKE_CURRENT_LIST_DIR}/src/hls.cc
-    ${CMAKE_CURRENT_LIST_DIR}/src/hls.hh
     ${CMAKE_CURRENT_LIST_DIR}/src/audiobuffer.hh
     ${CMAKE_CURRENT_LIST_DIR}/src/wmget.cc
     ${CMAKE_CURRENT_LIST_DIR}/src/wmadd.cc
@@ -65,23 +72,51 @@ set(COMMON_SRC
     ${CMAKE_CURRENT_LIST_DIR}/src/resample.hh
 )
 
+if(MP3_SUPPORT)
+    list(APPEND COMMON_SRC
+        ${CMAKE_CURRENT_LIST_DIR}/src/mp3inputstream.cc
+        ${CMAKE_CURRENT_LIST_DIR}/src/mp3inputstream.hh
+    )
+endif()
+
+if(HLS_SUPPORT)
+    list(APPEND COMMON_SRC
+        ${CMAKE_CURRENT_LIST_DIR}/src/hls.cc
+        ${CMAKE_CURRENT_LIST_DIR}/src/hls.hh
+    )
+endif()
+
 #================= WASM TARGET ==================#
 add_executable(${OUTPUT_NAME}
     ${CMAKE_CURRENT_LIST_DIR}/src/audiowmark.cc
     ${COMMON_SRC}
 )
 
-find_package (Threads)
+find_package (Threads)  # std::thread
 
 target_link_libraries(${OUTPUT_NAME} PRIVATE
-    sndfile # https://github.com/libsndfile/sndfile-tools
-    fftw3f # http://fftw.org/download.html
-    gcrypt # https://github.com/ShiftMediaProject/libgcrypt
-    mpg123 # http://mpg123.org/snapshot
-    zita-resampler # https://github.com/digital-stage/zita-resampler
-    ${CMAKE_THREAD_LIBS_INIT} # pthread
-    #ffmpeg is optional
+    sndfile # https://github.com/libsndfile/sndfile-tools, used by sfinputstream.cc and sfoutputstream.cc for reading/writing audio files
+    fftw3f # http://fftw.org/download.html, used by fft.cc for the FFT
+    gcrypt # https://github.com/ShiftMediaProject/libgcrypt, used by random.cc for encryption
+    zita-resampler # https://github.com/digital-stage/zita-resampler, used by wmadd.cc and resample.cc for resampling
+    ${CMAKE_THREAD_LIBS_INIT} # std::thread, used by threadpool.cc for multithreading
 )
+
+if(MP3_SUPPORT)
+    message("-- Linking MP3 library ...")
+    target_link_libraries(${OUTPUT_NAME} PRIVATE
+        mpg123 # http://mpg123.org/snapshot, used by mp3inputstream.cc for reading mp3 files (optional)
+    )
+    add_compile_definitions(HAVE_MP3)
+endif()
+
+if(HLS_SUPPORT)
+    message("-- Linking FFMPEG library ...")
+    target_link_libraries(${OUTPUT_NAME} PRIVATE
+        avformat # libavformat from ffmpeg, used by hls.cc for HTTP Live Streaming (optional, some other ffmpeg libraries may be needed)
+    )
+    add_compile_definitions(HAVE_FFMPEG)
+endif()
 
 set(VERSION ${PACKAGE_VERSION})
 configure_file(${CMAKE_CURRENT_LIST_DIR}/config.h.in ${CMAKE_CURRENT_LIST_DIR}/config.h @ONLY)
@@ -91,23 +126,22 @@ target_include_directories(${OUTPUT_NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
-# TODO: get these 👇 from current platform
 target_compile_definitions(${OUTPUT_NAME} PRIVATE
-    HAVE_CXX14=1                # whether the compiler supports basic C++14 syntax
-    HAVE_DLFCN_H=1              # whether the <dlfcn.h> header file is available
-    HAVE_FFMPEG=0               # whether ffmpeg libs are available
-    HAVE_INTTYPES_H=1           # whether the <inttypes.h> header file is available
+    SPECTMORPH_HAVE_FFTW=1      # whether libfftw3 is available
     HAVE_LIBZITA_RESAMPLER=1    # whether the `zita-resampler' library is available
-    HAVE_MEMORY_H=1             # whether the <memory.h> header file is available
-    HAVE_STDINT_H=1             # whether the <stdint.h> header file is available
-    HAVE_STDLIB_H=1             # whether the <stdlib.h> header file is available
-    HAVE_STRINGS_H=1            # whether the <strings.h> header file is available
-    HAVE_STRING_H=1             # whether the <string.h> header file is available
+
+    ## Extra, likely unnecessary definitions:
+    STDC_HEADERS=1              # whether ANSI C header files are available (assert.h, errno.h, math.h, stdarg.h, stdint.h, stdio.h)
+    HAVE_UNISTD_H=1             # whether the <unistd.h> header file is available
     HAVE_SYS_STAT_H=1           # whether the <sys/stat.h> header file is available
     HAVE_SYS_TYPES_H=1          # whether the <sys/types.h> header file is available
-    HAVE_UNISTD_H=1             # whether the <unistd.h> header file is available
-    SPECTMORPH_HAVE_FFTW=1      # whether libfftw3 is available
-    STDC_HEADERS=1              # whether ANSI C header files are available
+    #HAVE_CXX14=1                # whether the compiler supports basic C++14 syntax
+    #HAVE_DLFCN_H=1              # whether the <dlfcn.h> header file is available
+    #HAVE_INTTYPES_H=1           # whether the <inttypes.h> header file is available
+    #HAVE_MEMORY_H=1             # whether the <memory.h> header file is available
+    #HAVE_STDLIB_H=1             # whether the <stdlib.h> header file is available
+    #HAVE_STRINGS_H=1            # whether the <strings.h> header file is available
+    #HAVE_STRING_H=1             # whether the <string.h> header file is available
 )
 
 target_compile_options(${OUTPUT_NAME} PRIVATE -g -O2 -Wall)

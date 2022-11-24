@@ -17,7 +17,9 @@
 
 #include "fft.hh"
 
+#if SPECTMORPH_HAVE_FFTW
 #include <fftw3.h>
+#endif
 
 #include <map>
 #include <mutex>

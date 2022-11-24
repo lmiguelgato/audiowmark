@@ -20,7 +20,9 @@
 #include "audiostream.hh"
 #include "sfinputstream.hh"
 #include "sfoutputstream.hh"
+#if HAVE_MP3
 #include "mp3inputstream.hh"
+#endif
 
 #include <memory>
 #include <math.h>

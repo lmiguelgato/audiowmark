@@ -18,8 +18,14 @@
 #include <array>
 #include <regex>
 
+#if HAVE_INTTYPES_H
 #include <inttypes.h>
-#include <string.h>
+#endif
+
+#if STDC_HEADERS
+#include <string.h>  // TODO: use <cstring> instead
+#endif
+
 #include "utils.hh"
 #include "mpegts.hh"
 

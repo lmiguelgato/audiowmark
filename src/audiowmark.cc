@@ -15,7 +15,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <string.h>
+#if STDC_HEADERS
+#include <string.h>  // TODO: use <cstring> instead
+#endif
+
 #include <math.h>
 #include <string>
 #include <random>
@@ -27,7 +30,9 @@
 #include "random.hh"
 #include "wmcommon.hh"
 #include "shortcode.hh"
+#if HAVE_FFMPEG
 #include "hls.hh"
+#endif
 #include "resample.hh"
 
 #include <assert.h>
@@ -79,9 +84,12 @@ print_usage()
   printf ("The options to set the raw stream parameters (such as --raw-rate\n");
   printf ("or --raw-channels) are documented in the README file.\n");
   printf ("\n");
+  #if HAVE_FFMPEG
   printf ("HLS command help can be displayed using --help-hls\n");
+  #endif
 }
 
+#if HAVE_FFMPEG
 void
 print_usage_hls()
 {
@@ -104,6 +112,7 @@ print_usage_hls()
   printf ("  --key <file>          load watermarking key from file\n");
   printf ("  --bit-rate            set AAC bitrate\n");
 }
+#endif
 
 Format
 parse_format (const string& str)
@@ -746,11 +755,13 @@ main (int argc, char **argv)
       print_usage();
       return 0;
     }
+#if HAVE_FFMPEG
   if (ap.parse_opt ("--help-hls"))
     {
       print_usage_hls();
       return 0;
     }
+#endif
   if (ap.parse_opt ("--version") || ap.parse_opt ("-v"))
     {
       printf ("audiowmark %s\n", VERSION);
@@ -764,6 +775,7 @@ main (int argc, char **argv)
     {
       Params::strict = true;
     }
+#if HAVE_FFMPEG
   if (ap.parse_cmd ("hls-add"))
     {
       parse_shared_options (ap);
@@ -780,6 +792,7 @@ main (int argc, char **argv)
       args = parse_positional (ap, "input_dir", "output_dir", "playlist_name", "audio_master");
       return hls_prepare (args[0], args[1], args[2], args[3]);
     }
+#endif
   else if (ap.parse_cmd ("add"))
     {
       parse_shared_options (ap);
