@@ -11,11 +11,6 @@ function(custom_target_link_libraries)
         REQUIRED
     )
 
-    target_link_libraries($<TARGET_FILE:${ARG_TARGET}> PRIVATE
-        ${LIBRARY}
-    )
-
-    target_include_directories($<TARGET_FILE:${ARG_TARGET}> PRIVATE
-        ${API_DIR}
-    )
+    target_link_libraries(${ARG_TARGET} PRIVATE ${LIBRARY})
+    target_include_directories(${ARG_TARGET} PRIVATE ${API_DIR})
 endfunction()
