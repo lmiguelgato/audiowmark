@@ -15,7 +15,7 @@ set(OUTPUT_NAME audiowmark)
 set(PACKAGE_NAME "audiowmark")
 set(PACKAGE_VERSION "0.6.1")
 
-include(cmake/utils)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/utils.cmake)
 
 # Add cmake options:
 option(MP3_SUPPORT "Support MP3 audio format" OFF)
