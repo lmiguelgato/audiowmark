@@ -23,7 +23,7 @@
 #endif
 
 #if STDC_HEADERS
-#include <string.h>  // TODO: use <cstring> instead
+#include <string.h>
 #endif
 
 #include "utils.hh"

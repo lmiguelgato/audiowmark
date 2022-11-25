@@ -19,7 +19,7 @@
 
 #include <assert.h>
 #if STDC_HEADERS
-#include <string.h>  // TODO: use <cstring> instead
+#include <string.h>
 #endif
 #if HAVE_UNISTD_H
 #include <unistd.h>
