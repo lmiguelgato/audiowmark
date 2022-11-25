@@ -15,6 +15,8 @@ set(OUTPUT_NAME audiowmark)
 set(PACKAGE_NAME "audiowmark")
 set(PACKAGE_VERSION "0.6.1")
 
+include(cmake/utils)
+
 # Add cmake options:
 option(MP3_SUPPORT "Support MP3 audio format" OFF)
 option(HLS_SUPPORT "Support HTTP Live Streaming" OFF)
@@ -92,62 +94,20 @@ add_executable(${OUTPUT_NAME}
     ${COMMON_SRC}
 )
 
-find_package (Threads)  # std::thread
+custom_target_link_libraries(TARGET ${OUTPUT_NAME} API sndfile.h LIB sndfile) # https://github.com/libsndfile/sndfile-tools, used by sfinputstream.cc and sfoutputstream.cc for reading/writing audio files
+custom_target_link_libraries(TARGET ${OUTPUT_NAME} API fftw3.h LIB fftw3f) # http://fftw.org/download.html, used by fft.cc for the FFT
+custom_target_link_libraries(TARGET ${OUTPUT_NAME} API gcrypt.h LIB gcrypt) # https://github.com/ShiftMediaProject/libgcrypt, used by random.cc for encryption
+custom_target_link_libraries(TARGET ${OUTPUT_NAME} API zita-resampler LIB zita-resampler) # https://github.com/digital-stage/zita-resampler, used by wmadd.cc and resample.cc for resampling
 
-FIND_PATH(GCRYPT_INCLUDE_DIR NAMES gcrypt.h
-    PATHS /include /usr/include /usr/local/include /usr/share/include /opt/include
-    REQUIRED
+find_package (Threads)  # std::thread, used by threadpool.cc for multithreading
+target_link_libraries(${OUTPUT_NAME} PRIVATE ${CMAKE_THREAD_LIBS_INIT})
+
+target_include_directories(${OUTPUT_NAME} PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/src
+    ${CMAKE_CURRENT_LIST_DIR}
 )
 
-FIND_LIBRARY(GCRYPT_LIBRARY NAMES gcrypt
-    PATHS /usr/lib /lib /usr/local/lib /usr/share/lib /opt/lib /opt/share/lib /var/lib /usr/lib64 /lib64 /usr/local/lib64 /usr/share/lib64 /opt/lib64 /opt/share/lib64 /var/lib64
-    REQUIRED
-)
-
-FIND_PATH(SNDFILE_INCLUDE_DIR NAMES sndfile.h
-    PATHS /include /usr/include /usr/local/include /usr/share/include /opt/include
-    REQUIRED
-)
-
-FIND_LIBRARY(SNDFILE_LIBRARY NAMES sndfile
-    PATHS /usr/lib /lib /usr/local/lib /usr/share/lib /opt/lib /opt/share/lib /var/lib /usr/lib64 /lib64 /usr/local/lib64 /usr/share/lib64 /opt/lib64 /opt/share/lib64 /var/lib64
-    REQUIRED
-)
-
-FIND_PATH(FFTW_INCLUDE_DIR NAMES fftw3.h
-    PATHS /include /usr/include /usr/local/include /usr/share/include /opt/include
-    REQUIRED
-)
-
-FIND_LIBRARY(FFTW_LIBRARY NAMES fftw3f
-    PATHS /usr/lib /lib /usr/local/lib /usr/share/lib /opt/lib /opt/share/lib /var/lib /usr/lib64 /lib64 /usr/local/lib64 /usr/share/lib64 /opt/lib64 /opt/share/lib64 /var/lib64
-    REQUIRED
-)
-
-FIND_PATH(ZITA_INCLUDE_DIR NAMES zita-resampler
-    PATHS /include /usr/include /usr/local/include /usr/share/include /opt/include
-    REQUIRED
-)
-
-FIND_LIBRARY(ZITA_LIBRARY NAMES zita-resampler
-    PATHS /usr/lib /lib /usr/local/lib /usr/share/lib /opt/lib /opt/share/lib /var/lib /usr/lib64 /lib64 /usr/local/lib64 /usr/share/lib64 /opt/lib64 /opt/share/lib64 /var/lib64
-    REQUIRED
-)
-
-if (GCRYPT_INCLUDE_DIR)
-    message("-- Found gcrypt.h: ${GCRYPT_INCLUDE_DIR}")
-else()
-    message(FATAL_ERROR "gcrypt.h not found")
-endif()
-
-target_link_libraries(${OUTPUT_NAME} PRIVATE
-    ${SNDFILE_LIBRARY} # https://github.com/libsndfile/sndfile-tools, used by sfinputstream.cc and sfoutputstream.cc for reading/writing audio files
-    ${FFTW_LIBRARY} # http://fftw.org/download.html, used by fft.cc for the FFT
-    ${GCRYPT_LIBRARY} # https://github.com/ShiftMediaProject/libgcrypt, used by random.cc for encryption
-    ${ZITA_LIBRARY} # https://github.com/digital-stage/zita-resampler, used by wmadd.cc and resample.cc for resampling
-    ${CMAKE_THREAD_LIBS_INIT} # std::thread, used by threadpool.cc for multithreading
-)
-
+## Optional libraries:
 if(MP3_SUPPORT)
     message("-- Linking MP3 library ...")
     target_link_libraries(${OUTPUT_NAME} PRIVATE
@@ -164,17 +124,9 @@ if(HLS_SUPPORT)
     add_compile_definitions(HAVE_FFMPEG)
 endif()
 
+## config.h
 set(VERSION ${PACKAGE_VERSION})
 configure_file(${CMAKE_CURRENT_LIST_DIR}/config.h.in ${CMAKE_CURRENT_LIST_DIR}/config.h @ONLY)
-
-target_include_directories(${OUTPUT_NAME} PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}/src
-    ${CMAKE_CURRENT_LIST_DIR}
-    ${GCRYPT_INCLUDE_DIR}
-    ${SNDFILE_INCLUDE_DIR}
-    ${FFTW_INCLUDE_DIR}
-    ${ZITA_INCLUDE_DIR}
-)
 
 target_compile_definitions(${OUTPUT_NAME} PRIVATE
     SPECTMORPH_HAVE_FFTW=1      # whether libfftw3 is available
