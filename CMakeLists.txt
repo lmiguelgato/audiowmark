@@ -94,9 +94,25 @@ add_executable(${OUTPUT_NAME}
 
 find_package (Threads)  # std::thread
 
-FIND_PATH(GCRYPT_INCLUDE_DIR NAMES gcrypt.h 
-                             PATHS /include /usr/include /usr/local/include /usr/share/include /opt/include
-                             REQUIRED)
+FIND_PATH(GCRYPT_INCLUDE_DIR NAMES gcrypt.h
+    PATHS /include /usr/include /usr/local/include /usr/share/include /opt/include
+    REQUIRED
+)
+
+FIND_LIBRARY(GCRYPT_LIBRARY NAMES gcrypt
+    PATHS /usr/lib /lib /usr/local/lib /usr/share/lib /opt/lib /opt/share/lib /var/lib /usr/lib64 /lib64 /usr/local/lib64 /usr/share/lib64 /opt/lib64 /opt/share/lib64 /var/lib64
+    REQUIRED
+)
+
+FIND_PATH(SNDFILE_INCLUDE_DIR NAMES sndfile.h
+    PATHS /include /usr/include /usr/local/include /usr/share/include /opt/include
+    REQUIRED
+)
+
+FIND_LIBRARY(SNDFILE_LIBRARY NAMES sndfile
+    PATHS /usr/lib /lib /usr/local/lib /usr/share/lib /opt/lib /opt/share/lib /var/lib /usr/lib64 /lib64 /usr/local/lib64 /usr/share/lib64 /opt/lib64 /opt/share/lib64 /var/lib64
+    REQUIRED
+)
 
 if (GCRYPT_INCLUDE_DIR)
     message("-- Found gcrypt.h: ${GCRYPT_INCLUDE_DIR}")
@@ -105,9 +121,9 @@ else()
 endif()
 
 target_link_libraries(${OUTPUT_NAME} PRIVATE
-    sndfile # https://github.com/libsndfile/sndfile-tools, used by sfinputstream.cc and sfoutputstream.cc for reading/writing audio files
+    SNDFILE_LIBRARY # https://github.com/libsndfile/sndfile-tools, used by sfinputstream.cc and sfoutputstream.cc for reading/writing audio files
     fftw3f # http://fftw.org/download.html, used by fft.cc for the FFT
-    gcrypt # https://github.com/ShiftMediaProject/libgcrypt, used by random.cc for encryption
+    GCRYPT_LIBRARY # https://github.com/ShiftMediaProject/libgcrypt, used by random.cc for encryption
     zita-resampler # https://github.com/digital-stage/zita-resampler, used by wmadd.cc and resample.cc for resampling
     ${CMAKE_THREAD_LIBS_INIT} # std::thread, used by threadpool.cc for multithreading
 )
@@ -135,6 +151,7 @@ target_include_directories(${OUTPUT_NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/src
     ${CMAKE_CURRENT_LIST_DIR}
     ${GCRYPT_INCLUDE_DIR}
+    ${SNDFILE_INCLUDE_DIR}
 )
 
 target_compile_definitions(${OUTPUT_NAME} PRIVATE
