@@ -94,6 +94,16 @@ add_executable(${OUTPUT_NAME}
 
 find_package (Threads)  # std::thread
 
+FIND_PATH(GCRYPT_INCLUDE_DIR NAMES gcrypt.h 
+                             PATHS /include /usr/include /usr/local/include /usr/share/include /opt/include
+                             REQUIRED)
+
+if (GCRYPT_INCLUDE_DIR)
+    message("-- Found gcrypt.h: ${GCRYPT_INCLUDE_DIR}")
+else()
+    message(FATAL_ERROR "gcrypt.h not found")
+endif()
+
 target_link_libraries(${OUTPUT_NAME} PRIVATE
     sndfile # https://github.com/libsndfile/sndfile-tools, used by sfinputstream.cc and sfoutputstream.cc for reading/writing audio files
     fftw3f # http://fftw.org/download.html, used by fft.cc for the FFT
@@ -124,6 +134,7 @@ configure_file(${CMAKE_CURRENT_LIST_DIR}/config.h.in ${CMAKE_CURRENT_LIST_DIR}/c
 target_include_directories(${OUTPUT_NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/src
     ${CMAKE_CURRENT_LIST_DIR}
+    ${GCRYPT_INCLUDE_DIR}
 )
 
 target_compile_definitions(${OUTPUT_NAME} PRIVATE
