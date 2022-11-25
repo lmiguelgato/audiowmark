@@ -121,9 +121,9 @@ else()
 endif()
 
 target_link_libraries(${OUTPUT_NAME} PRIVATE
-    SNDFILE_LIBRARY # https://github.com/libsndfile/sndfile-tools, used by sfinputstream.cc and sfoutputstream.cc for reading/writing audio files
+    ${SNDFILE_LIBRARY} # https://github.com/libsndfile/sndfile-tools, used by sfinputstream.cc and sfoutputstream.cc for reading/writing audio files
     fftw3f # http://fftw.org/download.html, used by fft.cc for the FFT
-    GCRYPT_LIBRARY # https://github.com/ShiftMediaProject/libgcrypt, used by random.cc for encryption
+    ${GCRYPT_LIBRARY} # https://github.com/ShiftMediaProject/libgcrypt, used by random.cc for encryption
     zita-resampler # https://github.com/digital-stage/zita-resampler, used by wmadd.cc and resample.cc for resampling
     ${CMAKE_THREAD_LIBS_INIT} # std::thread, used by threadpool.cc for multithreading
 )

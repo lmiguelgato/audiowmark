@@ -9,8 +9,6 @@ build()
   echo "###############################################################################"
   $CXX --version | sed '/^[[:space:]]*$/d;s/^/#   /'
   echo "###############################################################################"
-  apt-get install -y libgcrypt20-dev
-  apt-get install -y libsndfile1-dev
   cmake -DMP3_SUPPORT=OFF -DHLS_SUPPORT=OFF -S . -B ./build
   cmake --build ./build
 }
