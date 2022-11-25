@@ -114,6 +114,26 @@ FIND_LIBRARY(SNDFILE_LIBRARY NAMES sndfile
     REQUIRED
 )
 
+FIND_PATH(FFTW_INCLUDE_DIR NAMES fftw3.h
+    PATHS /include /usr/include /usr/local/include /usr/share/include /opt/include
+    REQUIRED
+)
+
+FIND_LIBRARY(FFTW_LIBRARY NAMES fftw3f
+    PATHS /usr/lib /lib /usr/local/lib /usr/share/lib /opt/lib /opt/share/lib /var/lib /usr/lib64 /lib64 /usr/local/lib64 /usr/share/lib64 /opt/lib64 /opt/share/lib64 /var/lib64
+    REQUIRED
+)
+
+FIND_PATH(ZITA_INCLUDE_DIR NAMES zita-resampler
+    PATHS /include /usr/include /usr/local/include /usr/share/include /opt/include
+    REQUIRED
+)
+
+FIND_LIBRARY(ZITA_LIBRARY NAMES zita-resampler
+    PATHS /usr/lib /lib /usr/local/lib /usr/share/lib /opt/lib /opt/share/lib /var/lib /usr/lib64 /lib64 /usr/local/lib64 /usr/share/lib64 /opt/lib64 /opt/share/lib64 /var/lib64
+    REQUIRED
+)
+
 if (GCRYPT_INCLUDE_DIR)
     message("-- Found gcrypt.h: ${GCRYPT_INCLUDE_DIR}")
 else()
@@ -122,9 +142,9 @@ endif()
 
 target_link_libraries(${OUTPUT_NAME} PRIVATE
     ${SNDFILE_LIBRARY} # https://github.com/libsndfile/sndfile-tools, used by sfinputstream.cc and sfoutputstream.cc for reading/writing audio files
-    fftw3f # http://fftw.org/download.html, used by fft.cc for the FFT
+    ${FFTW_LIBRARY} # http://fftw.org/download.html, used by fft.cc for the FFT
     ${GCRYPT_LIBRARY} # https://github.com/ShiftMediaProject/libgcrypt, used by random.cc for encryption
-    zita-resampler # https://github.com/digital-stage/zita-resampler, used by wmadd.cc and resample.cc for resampling
+    ${ZITA_LIBRARY} # https://github.com/digital-stage/zita-resampler, used by wmadd.cc and resample.cc for resampling
     ${CMAKE_THREAD_LIBS_INIT} # std::thread, used by threadpool.cc for multithreading
 )
 
@@ -152,6 +172,8 @@ target_include_directories(${OUTPUT_NAME} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
     ${GCRYPT_INCLUDE_DIR}
     ${SNDFILE_INCLUDE_DIR}
+    ${FFTW_INCLUDE_DIR}
+    ${ZITA_INCLUDE_DIR}
 )
 
 target_compile_definitions(${OUTPUT_NAME} PRIVATE
