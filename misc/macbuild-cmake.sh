@@ -12,5 +12,5 @@ make install
 cd ..
 
 # build audiowmark
-cmake -DMP3_SUPPORT=OFF -DHLS_SUPPORT=OFF -S . -B ./build
+cmake -DMP3_SUPPORT=ON -DHLS_SUPPORT=ON -S . -B ./build
 cmake --build ./build
