@@ -9,7 +9,7 @@ build()
   echo "###############################################################################"
   $CXX --version | sed '/^[[:space:]]*$/d;s/^/#   /'
   echo "###############################################################################"
-  cmake -DMP3_SUPPORT=ON -DHLS_SUPPORT=OFF -S . -B ./build
+  cmake -DMP3_SUPPORT=ON -DHLS_SUPPORT=ON -S . -B ./build
   cmake --build ./build
 }
 
