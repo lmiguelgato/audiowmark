@@ -94,10 +94,10 @@ add_executable(${OUTPUT_NAME}
     ${COMMON_SRC}
 )
 
-custom_target_link_libraries(TARGET $<TARGET_FILE:${OUTPUT_NAME}> API sndfile.h LIB sndfile) # https://github.com/libsndfile/sndfile-tools, used by sfinputstream.cc and sfoutputstream.cc for reading/writing audio files
-custom_target_link_libraries(TARGET $<TARGET_FILE:${OUTPUT_NAME}> API fftw3.h LIB fftw3f) # http://fftw.org/download.html, used by fft.cc for the FFT
-custom_target_link_libraries(TARGET $<TARGET_FILE:${OUTPUT_NAME}> API gcrypt.h LIB gcrypt) # https://github.com/ShiftMediaProject/libgcrypt, used by random.cc for encryption
-custom_target_link_libraries(TARGET $<TARGET_FILE:${OUTPUT_NAME}> API zita-resampler LIB zita-resampler) # https://github.com/digital-stage/zita-resampler, used by wmadd.cc and resample.cc for resampling
+custom_target_link_libraries(TARGET ${OUTPUT_NAME} API sndfile.h LIB sndfile) # https://github.com/libsndfile/sndfile-tools, used by sfinputstream.cc and sfoutputstream.cc for reading/writing audio files
+custom_target_link_libraries(TARGET ${OUTPUT_NAME} API fftw3.h LIB fftw3f) # http://fftw.org/download.html, used by fft.cc for the FFT
+custom_target_link_libraries(TARGET ${OUTPUT_NAME} API gcrypt.h LIB gcrypt) # https://github.com/ShiftMediaProject/libgcrypt, used by random.cc for encryption
+custom_target_link_libraries(TARGET ${OUTPUT_NAME} API zita-resampler LIB zita-resampler) # https://github.com/digital-stage/zita-resampler, used by wmadd.cc and resample.cc for resampling
 
 find_package (Threads)  # std::thread, used by threadpool.cc for multithreading
 target_link_libraries(${OUTPUT_NAME} PRIVATE ${CMAKE_THREAD_LIBS_INIT})
