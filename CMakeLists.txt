@@ -109,18 +109,17 @@ target_include_directories(${OUTPUT_NAME} PRIVATE
 
 ## Optional libraries:
 if(MP3_SUPPORT)
-    message("-- Linking MP3 library ...")
-    target_link_libraries(${OUTPUT_NAME} PRIVATE
-        mpg123 # http://mpg123.org/snapshot, used by mp3inputstream.cc for reading mp3 files (optional)
-    )
+    # http://mpg123.org/snapshot, used by mp3inputstream.cc for reading mp3 files (optional)
+    custom_target_link_libraries(TARGET ${OUTPUT_NAME} API mpg123.h LIB mpg123)
     add_compile_definitions(HAVE_MP3)
 endif()
 
 if(HLS_SUPPORT)
-    message("-- Linking FFMPEG library ...")
-    target_link_libraries(${OUTPUT_NAME} PRIVATE
-        avformat # libavformat from ffmpeg, used by hls.cc for HTTP Live Streaming (optional, some other ffmpeg libraries may be needed)
-    )
+    # ffmpeg libraries, used by hls.cc for HTTP Live Streaming (optional)
+    custom_target_link_libraries(TARGET ${OUTPUT_NAME} API libavformat LIB avformat)
+    custom_target_link_libraries(TARGET ${OUTPUT_NAME} API libavutil LIB avutil)
+    custom_target_link_libraries(TARGET ${OUTPUT_NAME} API libswresample LIB swresample)
+    custom_target_link_libraries(TARGET ${OUTPUT_NAME} API libavcodec LIB avcodec)
     add_compile_definitions(HAVE_FFMPEG)
 endif()
 
