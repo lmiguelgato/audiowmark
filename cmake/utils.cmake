@@ -3,7 +3,7 @@ function(custom_target_link_libraries)
 
     message("-- Looking for ${ARG_API} API ...")
     find_path(API_DIR NAMES ${ARG_API}
-        PATHS /include /usr/include /usr/local/include /usr/share/include /opt/include
+        PATHS /include /usr/include /usr/local/include /usr/share/include /opt/include /usr/include/x86_64-linux-gnu
         REQUIRED NO_CACHE
     )
 
