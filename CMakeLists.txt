@@ -85,6 +85,8 @@ if(HLS_SUPPORT)
     list(APPEND COMMON_SRC
         ${CMAKE_CURRENT_LIST_DIR}/src/hls.cc
         ${CMAKE_CURRENT_LIST_DIR}/src/hls.hh
+        ${CMAKE_CURRENT_LIST_DIR}/src/hlsoutputstream.cc
+        ${CMAKE_CURRENT_LIST_DIR}/src/hlsoutputstream.hh
     )
 endif()
 
