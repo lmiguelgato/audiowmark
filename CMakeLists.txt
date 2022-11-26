@@ -24,9 +24,9 @@ option(HLS_SUPPORT "Support HTTP Live Streaming" OFF)
 message("-- MP3 support: ${MP3_SUPPORT}")
 message("-- HLS support: ${HLS_SUPPORT}")
 
-if(HLS_SUPPORT)
-    message(FATAL_ERROR "HTTP Live Streaming support is not yet implemented")
-endif()
+#if(HLS_SUPPORT)
+#    message(FATAL_ERROR "HTTP Live Streaming support is not yet implemented")
+#endif()
 
 set(COMMON_SRC
     ${CMAKE_CURRENT_LIST_DIR}/src/utils.hh
