@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AudioWmark WASM Diagnostic</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #ffffff;
+            line-height: 1.6;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background: #2d5a2d; }
+        .error { background: #5a2d2d; }
+        .warning { background: #5a5a2d; }
+        .info { background: #2d2d5a; }
+        h1 { color: #4CAF50; }
+        h2 { color: #FFA726; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #45a049; }
+    </style>
+</head>
+<body>
+    <h1>🔧 AudioWmark WASM Diagnostic</h1>
+    
+    <h2>Module Loading</h2>
+    <div id="module-status" class="status info">Checking module availability...</div>
+    
+    <h2>Memory Access</h2>
+    <div id="memory-status" class="status info">Checking memory heaps...</div>
+    
+    <h2>Function Tests</h2>
+    <div id="function-status" class="status info">Testing exported functions...</div>
+    
+    <h2>Text Conversion Test</h2>
+    <button onclick="testTextConversion()">Test Text ↔ Hex</button>
+    <div id="text-test-result" class="status info">Click button to test</div>
+    
+    <h2>Watermarker Test</h2>
+    <button onclick="testWatermarker()">Test Watermarker</button>
+    <div id="watermarker-test-result" class="status info">Click button to test</div>
+    
+    <h2>Memory Operation Test</h2>
+    <button onclick="testMemoryOperations()">Test Memory</button>
+    <div id="memory-test-result" class="status info">Click button to test</div>
+
+    <script src="audiowmark.js"></script>
+    <script>
+        let wasmModule = null;
+        let wasmFunctions = {};
+        
+        async function initializeDiagnostic() {
+            try {
+                updateStatus('module-status', 'Loading AudioWmark module...', 'info');
+                
+                // Check if module is available
+                if (typeof AudioWmarkModule === 'undefined') {
+                    updateStatus('module-status', '❌ AudioWmarkModule not found', 'error');
+                    return;
+                }
+                
+                // Load module
+                wasmModule = await AudioWmarkModule();
+                updateStatus('module-status', '✅ Module loaded successfully', 'success');
+                
+                // Check memory heaps
+                checkMemoryAccess();
+                
+                // Setup functions
+                setupFunctions();
+                
+                // Test functions
+                testFunctions();
+                
+            } catch (error) {
+                updateStatus('module-status', '❌ Failed to load: ' + error.message, 'error');
+                console.error(error);
+            }
+        }
+        
+        function checkMemoryAccess() {
+            const results = [];
+            
+            if (wasmModule.HEAPF32) {
+                results.push('✅ HEAPF32 available');
+            } else {
+                results.push('❌ HEAPF32 missing');
+            }
+            
+            if (wasmModule.HEAP8) {
+                results.push('✅ HEAP8 available');
+            } else {
+                results.push('❌ HEAP8 missing');
+            }
+            
+            if (wasmModule.HEAPU8) {
+                results.push('✅ HEAPU8 available');
+            } else {
+                results.push('❌ HEAPU8 missing');
+            }
+            
+            const hasErrors = results.some(r => r.includes('❌'));
+            updateStatus('memory-status', results.join('<br>'), hasErrors ? 'error' : 'success');
+        }
+        
+        function setupFunctions() {
+            const { cwrap } = wasmModule;
+            
+            wasmFunctions = {
+                textToHex: cwrap('text_to_hex_simple', 'string', ['string']),
+                hexToText: cwrap('hex_to_text_simple', 'string', ['string']),
+                getFrameSize: cwrap('get_recommended_frame_size_simple', 'number', []),
+                createWatermarker: cwrap('create_simple_watermarker', 'number', ['number', 'number', 'number', 'string']),
+                destroyWatermarker: cwrap('destroy_simple_watermarker', null, ['number']),
+            };
+        }
+        
+        function testFunctions() {
+            const results = [];
+            
+            try {
+                const frameSize = wasmFunctions.getFrameSize();
+                results.push(`✅ getFrameSize: ${frameSize}`);
+            } catch (e) {
+                results.push('❌ getFrameSize failed: ' + e.message);
+            }
+            
+            try {
+                const hex = wasmFunctions.textToHex('test');
+                results.push(`✅ textToHex: "${hex}"`);
+            } catch (e) {
+                results.push('❌ textToHex failed: ' + e.message);
+            }
+            
+            const hasErrors = results.some(r => r.includes('❌'));
+            updateStatus('function-status', results.join('<br>'), hasErrors ? 'error' : 'success');
+        }
+        
+        function testTextConversion() {
+            try {
+                const testText = 'Hello World!';
+                const hex = wasmFunctions.textToHex(testText);
+                const backToText = wasmFunctions.hexToText(hex);
+                
+                const result = `
+                    Original: "${testText}"<br>
+                    Hex: "${hex}"<br>
+                    Back to text: "${backToText}"<br>
+                    Match: ${testText === backToText ? '✅' : '❌'}
+                `;
+                
+                updateStatus('text-test-result', result, testText === backToText ? 'success' : 'error');
+            } catch (error) {
+                updateStatus('text-test-result', '❌ Test failed: ' + error.message, 'error');
+            }
+        }
+        
+        function testWatermarker() {
+            try {
+                const messageHex = wasmFunctions.textToHex('Test Message');
+                const watermarker = wasmFunctions.createWatermarker(44100, 1, 0.1, messageHex);
+                
+                if (watermarker) {
+                    wasmFunctions.destroyWatermarker(watermarker);
+                    updateStatus('watermarker-test-result', '✅ Watermarker created and destroyed successfully', 'success');
+                } else {
+                    updateStatus('watermarker-test-result', '❌ Failed to create watermarker', 'error');
+                }
+            } catch (error) {
+                updateStatus('watermarker-test-result', '❌ Test failed: ' + error.message, 'error');
+            }
+        }
+        
+        function testMemoryOperations() {
+            try {
+                if (!wasmModule.HEAPF32) {
+                    updateStatus('memory-test-result', '❌ HEAPF32 not available', 'error');
+                    return;
+                }
+                
+                // Allocate memory
+                const size = 1024;
+                const ptr = wasmModule._malloc(size * 4); // 4 bytes per float
+                
+                if (!ptr) {
+                    updateStatus('memory-test-result', '❌ Failed to allocate memory', 'error');
+                    return;
+                }
+                
+                // Test writing/reading
+                const testData = new Float32Array([1.0, 2.0, 3.0, 4.0]);
+                const heapArray = new Float32Array(wasmModule.HEAPF32.buffer, ptr, testData.length);
+                heapArray.set(testData);
+                
+                // Read back
+                const readData = new Float32Array(wasmModule.HEAPF32.buffer, ptr, testData.length);
+                const match = testData.every((val, i) => val === readData[i]);
+                
+                // Clean up
+                wasmModule._free(ptr);
+                
+                updateStatus('memory-test-result', 
+                    `✅ Memory allocation: ${ptr}<br>` +
+                    `✅ Data write/read: ${match ? 'Success' : 'Failed'}<br>` +
+                    `✅ Memory freed successfully`, 
+                    'success');
+                
+            } catch (error) {
+                updateStatus('memory-test-result', '❌ Test failed: ' + error.message, 'error');
+            }
+        }
+        
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = message;
+            element.className = `status ${type}`;
+        }
+        
+        // Start diagnostic when page loads
+        window.addEventListener('load', () => {
+            setTimeout(initializeDiagnostic, 100);
+        });
+    </script>
+</body>
+</html>

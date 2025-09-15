@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AudioWmark Real-time Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .demo-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .demo-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .panel:hover {
+            transform: translateY(-5px);
+        }
+
+        .panel h2 {
+            color: #4a5568;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .sender .panel-icon {
+            background: #48bb78;
+        }
+
+        .receiver .panel-icon {
+            background: #4299e1;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #4299e1;
+        }
+
+        .button {
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(66, 153, 225, 0.4);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .button.stop {
+            background: linear-gradient(135deg, #f56565, #e53e3e);
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .status.idle {
+            background: #f7fafc;
+            color: #4a5568;
+            border: 2px solid #e2e8f0;
+        }
+
+        .status.active {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 2px solid #48bb78;
+        }
+
+        .status.detecting {
+            background: #bee3f8;
+            color: #1a365d;
+            border: 2px solid #4299e1;
+        }
+
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 2px solid #f56565;
+        }
+
+        .detection-result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f0fff4;
+            border: 2px solid #48bb78;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .detection-result.show {
+            display: block;
+        }
+
+        .confidence-bar {
+            width: 100%;
+            height: 20px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(to right, #f56565, #ed8936, #48bb78);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .audio-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .volume-control {
+            flex: 1;
+        }
+
+        .volume-control input[type="range"] {
+            width: 100%;
+            margin-top: 5px;
+        }
+
+        .info-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-top: 20px;
+        }
+
+        .info-panel h3 {
+            color: #4a5568;
+            margin-bottom: 15px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .info-item {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .info-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #4299e1;
+        }
+
+        .info-label {
+            font-size: 0.9em;
+            color: #718096;
+            margin-top: 5px;
+        }
+
+        .primary-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            margin: 20px 0;
+        }
+
+        .primary-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .primary-button:active {
+            transform: translateY(0);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: white;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎵 AudioWmark Real-time Demo</h1>
+            <p>Real-time audio watermarking using WebAssembly</p>
+        </div>
+
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <h2>Loading AudioWmark...</h2>
+        <p>Initializing WebAssembly module and audio system</p>
+    </div>
+
+    <div id="user-interaction" class="loading" style="display: none;">
+        <div>
+            <h2>🎵 AudioWmark Ready</h2>
+            <p>Click the button below to enable audio processing</p>
+            <p><small>(Required by browser security policy)</small></p>
+            <button id="enable-audio" class="primary-button">Enable Audio & Start App</button>
+        </div>
+    </div>        <div id="main-content" style="display: none;">
+            <div class="demo-container">
+                <!-- Sender Panel -->
+                <div class="panel sender">
+                    <h2>
+                        <div class="panel-icon">📢</div>
+                        Sender (Watermark Embedder)
+                    </h2>
+
+                    <div class="form-group">
+                        <label for="message-input">Message to Embed:</label>
+                        <input type="text" id="message-input" value="Hello World!" placeholder="Enter your message">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tone-frequency">Test Tone Frequency (Hz):</label>
+                        <select id="tone-frequency">
+                            <option value="440">440 Hz (A4)</option>
+                            <option value="523">523 Hz (C5)</option>
+                            <option value="659">659 Hz (E5)</option>
+                            <option value="880">880 Hz (A5)</option>
+                        </select>
+                    </div>
+
+                    <div class="audio-controls">
+                        <div class="volume-control">
+                            <label for="sender-volume">Volume:</label>
+                            <input type="range" id="sender-volume" min="0" max="100" value="30">
+                            <span id="sender-volume-value">30%</span>
+                        </div>
+                    </div>
+
+                    <button id="start-sender" class="button">🎵 Start Playing & Embedding</button>
+                    <button id="stop-sender" class="button stop" style="display: none;">⏹️ Stop</button>
+
+                    <div id="sender-status" class="status idle">
+                        Ready to embed watermark
+                    </div>
+                </div>
+
+                <!-- Receiver Panel -->
+                <div class="panel receiver">
+                    <h2>
+                        <div class="panel-icon">🎧</div>
+                        Receiver (Watermark Detector)
+                    </h2>
+
+                    <div class="form-group">
+                        <label for="detection-sensitivity">Detection Sensitivity:</label>
+                        <select id="detection-sensitivity">
+                            <option value="0.5">High (50%)</option>
+                            <option value="0.7" selected>Medium (70%)</option>
+                            <option value="0.9">Low (90%)</option>
+                        </select>
+                    </div>
+
+                    <button id="start-receiver" class="button">🎤 Start Listening</button>
+                    <button id="stop-receiver" class="button stop" style="display: none;">⏹️ Stop</button>
+
+                    <div id="receiver-status" class="status idle">
+                        Ready to detect watermarks
+                    </div>
+
+                    <div id="detection-result" class="detection-result">
+                        <h4>🎉 Watermark Detected!</h4>
+                        <p><strong>Message:</strong> <span id="detected-message">-</span></p>
+                        <p><strong>Confidence:</strong> <span id="confidence-value">-</span>%</p>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" id="confidence-fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Panel -->
+            <div class="info-panel">
+                <h3>📊 System Information</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-value" id="sample-rate">-</div>
+                        <div class="info-label">Sample Rate (Hz)</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-value" id="frame-size">-</div>
+                        <div class="info-label">Frame Size (samples)</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-value" id="latency">-</div>
+                        <div class="info-label">Latency (ms)</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-value" id="frames-processed">0</div>
+                        <div class="info-label">Frames Processed</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="audiowmark.js" async></script>
+    <!-- Application JavaScript -->
+    <script src="audiowmark_simple_app.js" defer></script>
+</body>
+</html>

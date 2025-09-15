@@ -1,0 +1,57 @@
+# Simplified WebAssembly build configuration
+cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
+project(audiowmark_wasm CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Check if building with Emscripten
+if(NOT EMSCRIPTEN)
+    message(FATAL_ERROR "This CMakeLists.txt is specifically for Emscripten builds. Use: emcmake cmake ..")
+endif()
+
+# Minimal source files for WASM demo
+set(WASM_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/src/audiowmark_wasm_simple.cc
+)
+
+# Create WebAssembly library
+add_executable(audiowmark_wasm ${WASM_SOURCES})
+
+# WebAssembly output directory
+set_target_properties(audiowmark_wasm PROPERTIES
+    SUFFIX ".js"
+    OUTPUT_NAME "audiowmark_wasm"
+)
+
+# Emscripten linker flags
+set(EMSCRIPTEN_LINK_FLAGS
+    -O3
+    -s WASM=1
+    -s EXPORTED_FUNCTIONS=['_malloc','_free','_create_simple_watermarker','_destroy_simple_watermarker','_process_simple_frame','_create_simple_detector','_destroy_simple_detector','_detect_simple_frame','_get_detection_result','_text_to_hex_simple','_hex_to_text_simple']
+    -s EXPORTED_RUNTIME_METHODS=['ccall','cwrap','getValue','setValue','UTF8ToString','stringToUTF8','_malloc','_free']
+    -s ALLOW_MEMORY_GROWTH=1
+    -s INITIAL_MEMORY=16777216
+    -s MODULARIZE=1
+    -s EXPORT_NAME='AudioWmarkModule'
+    -s ENVIRONMENT=web
+    -s DISABLE_EXCEPTION_CATCHING=0
+)
+
+set_target_properties(audiowmark_wasm PROPERTIES
+    LINK_FLAGS "${EMSCRIPTEN_LINK_FLAGS}"
+)
+
+# Include directories
+target_include_directories(audiowmark_wasm PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/include
+    ${CMAKE_CURRENT_LIST_DIR}/src
+)
+
+# Compile definitions
+target_compile_definitions(audiowmark_wasm PRIVATE
+    AUDIOWMARK_WASM_SIMPLE=1
+)
+
+# Compiler options
+target_compile_options(audiowmark_wasm PRIVATE -O3)
