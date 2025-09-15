@@ -3,7 +3,25 @@ project(audiowmark CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_C## Optional libraries:
+if(MP3_SUPPORT)
+    # http://mpg123.org/snapshot, used by mp3inputstream.cc for reading mp3 files (optional)
+    foreach(target ${OUTPUT_NAME}_lib ${OUTPUT_NAME}_static ${OUTPUT_NAME})
+        custom_target_link_libraries(TARGET ${target} API mpg123.h LIB mpg123)
+    endforeach()
+    add_compile_definitions(HAVE_MP3)
+endif()
+
+if(HLS_SUPPORT)
+    # ffmpeg libraries, used by hls.cc for HTTP Live Streaming (optional)
+    foreach(target ${OUTPUT_NAME}_lib ${OUTPUT_NAME}_static ${OUTPUT_NAME})
+        custom_target_link_libraries(TARGET ${target} API libavformat LIB avformat)
+        custom_target_link_libraries(TARGET ${target} API libavutil LIB avutil)
+        custom_target_link_libraries(TARGET ${target} API libswresample LIB swresample)
+        custom_target_link_libraries(TARGET ${target} API libavcodec LIB avcodec)
+    endforeach()
+    add_compile_definitions(HAVE_FFMPEG)
+endif()FF)
 
 # Setup output directories.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/bin)
@@ -90,24 +108,63 @@ if(HLS_SUPPORT)
     )
 endif()
 
-#================= WASM TARGET ==================#
+#================= LIBRARY TARGET ==================#
+# Create the shared library
+add_library(${OUTPUT_NAME}_lib SHARED
+    ${CMAKE_CURRENT_LIST_DIR}/src/audiowmark_realtime.cc
+    ${COMMON_SRC}
+)
+
+# Create the static library
+add_library(${OUTPUT_NAME}_static STATIC
+    ${CMAKE_CURRENT_LIST_DIR}/src/audiowmark_realtime.cc
+    ${COMMON_SRC}
+)
+
+# Set library properties
+set_target_properties(${OUTPUT_NAME}_lib PROPERTIES
+    OUTPUT_NAME ${OUTPUT_NAME}
+    VERSION ${PACKAGE_VERSION}
+    SOVERSION 1
+)
+
+set_target_properties(${OUTPUT_NAME}_static PROPERTIES
+    OUTPUT_NAME ${OUTPUT_NAME}
+)
+
+# Include directories for libraries
+target_include_directories(${OUTPUT_NAME}_lib PUBLIC
+    ${CMAKE_CURRENT_LIST_DIR}/include
+    ${CMAKE_CURRENT_LIST_DIR}/src
+)
+
+target_include_directories(${OUTPUT_NAME}_static PUBLIC
+    ${CMAKE_CURRENT_LIST_DIR}/include
+    ${CMAKE_CURRENT_LIST_DIR}/src
+)
+
+#================= EXECUTABLE TARGET ==================#
+#================= EXECUTABLE TARGET ==================#
 add_executable(${OUTPUT_NAME}
     ${CMAKE_CURRENT_LIST_DIR}/src/audiowmark.cc
     ${COMMON_SRC}
 )
 
-custom_target_link_libraries(TARGET ${OUTPUT_NAME} API sndfile.h LIB sndfile) # https://github.com/libsndfile/sndfile-tools, used by sfinputstream.cc and sfoutputstream.cc for reading/writing audio files
-custom_target_link_libraries(TARGET ${OUTPUT_NAME} API fftw3.h LIB fftw3f) # http://fftw.org/download.html, used by fft.cc for the FFT
-custom_target_link_libraries(TARGET ${OUTPUT_NAME} API gcrypt.h LIB gcrypt) # https://github.com/ShiftMediaProject/libgcrypt, used by random.cc for encryption
-custom_target_link_libraries(TARGET ${OUTPUT_NAME} API zita-resampler LIB zita-resampler) # https://github.com/digital-stage/zita-resampler, used by wmadd.cc and resample.cc for resampling
+# Link libraries for both shared and static library
+foreach(target ${OUTPUT_NAME}_lib ${OUTPUT_NAME}_static ${OUTPUT_NAME})
+    custom_target_link_libraries(TARGET ${target} API sndfile.h LIB sndfile) # https://github.com/libsndfile/sndfile-tools, used by sfinputstream.cc and sfoutputstream.cc for reading/writing audio files
+    custom_target_link_libraries(TARGET ${target} API fftw3.h LIB fftw3f) # http://fftw.org/download.html, used by fft.cc for the FFT
+    custom_target_link_libraries(TARGET ${target} API gcrypt.h LIB gcrypt) # https://github.com/ShiftMediaProject/libgcrypt, used by random.cc for encryption
+    custom_target_link_libraries(TARGET ${target} API zita-resampler LIB zita-resampler) # https://github.com/digital-stage/zita-resampler, used by wmadd.cc and resample.cc for resampling
 
-find_package (Threads)  # std::thread, used by threadpool.cc for multithreading
-target_link_libraries(${OUTPUT_NAME} PRIVATE ${CMAKE_THREAD_LIBS_INIT})
+    find_package (Threads)  # std::thread, used by threadpool.cc for multithreading
+    target_link_libraries(${target} PRIVATE ${CMAKE_THREAD_LIBS_INIT})
 
-target_include_directories(${OUTPUT_NAME} PRIVATE
-    ${CMAKE_CURRENT_LIST_DIR}/src
-    ${CMAKE_CURRENT_LIST_DIR}
-)
+    target_include_directories(${target} PRIVATE
+        ${CMAKE_CURRENT_LIST_DIR}/src
+        ${CMAKE_CURRENT_LIST_DIR}
+    )
+endforeach()
 
 ## Optional libraries:
 if(MP3_SUPPORT)
@@ -129,7 +186,12 @@ endif()
 set(VERSION ${PACKAGE_VERSION})
 configure_file(${CMAKE_CURRENT_LIST_DIR}/config.h.in ${CMAKE_CURRENT_LIST_DIR}/config.h @ONLY)
 
-target_compile_definitions(${OUTPUT_NAME} PRIVATE
+## config.h
+set(VERSION ${PACKAGE_VERSION})
+configure_file(${CMAKE_CURRENT_LIST_DIR}/config.h.in ${CMAKE_CURRENT_LIST_DIR}/config.h @ONLY)
+
+# Compile definitions for all targets
+set(COMMON_COMPILE_DEFINITIONS
     SPECTMORPH_HAVE_FFTW=1      # whether libfftw3 is available
     HAVE_LIBZITA_RESAMPLER=1    # whether the `zita-resampler' library is available
 
@@ -138,13 +200,23 @@ target_compile_definitions(${OUTPUT_NAME} PRIVATE
     HAVE_UNISTD_H=1             # whether the <unistd.h> header file is available
     HAVE_SYS_STAT_H=1           # whether the <sys/stat.h> header file is available
     HAVE_SYS_TYPES_H=1          # whether the <sys/types.h> header file is available
-    #HAVE_CXX14=1                # whether the compiler supports basic C++14 syntax
-    #HAVE_DLFCN_H=1              # whether the <dlfcn.h> header file is available
-    #HAVE_INTTYPES_H=1           # whether the <inttypes.h> header file is available
-    #HAVE_MEMORY_H=1             # whether the <memory.h> header file is available
-    #HAVE_STDLIB_H=1             # whether the <stdlib.h> header file is available
-    #HAVE_STRINGS_H=1            # whether the <strings.h> header file is available
-    #HAVE_STRING_H=1             # whether the <string.h> header file is available
 )
 
-target_compile_options(${OUTPUT_NAME} PRIVATE -g -O2 -Wall)
+foreach(target ${OUTPUT_NAME}_lib ${OUTPUT_NAME}_static ${OUTPUT_NAME})
+    target_compile_definitions(${target} PRIVATE ${COMMON_COMPILE_DEFINITIONS})
+    target_compile_options(${target} PRIVATE -g -O2 -Wall)
+endforeach()
+
+#================= EXAMPLE TARGET ==================#
+add_executable(realtime_example
+    ${CMAKE_CURRENT_LIST_DIR}/examples/realtime_example.cc
+)
+
+target_link_libraries(realtime_example PRIVATE ${OUTPUT_NAME}_static)
+target_include_directories(realtime_example PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/include
+    ${CMAKE_CURRENT_LIST_DIR}/src
+)
+
+target_compile_definitions(realtime_example PRIVATE ${COMMON_COMPILE_DEFINITIONS})
+target_compile_options(realtime_example PRIVATE -g -O2 -Wall)
