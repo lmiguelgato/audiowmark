@@ -21,7 +21,8 @@ cd $BUILD_DIR
 echo "📦 Configuring CMake for WebAssembly..."
 
 # Configure with Emscripten
-emcmake cmake -DCMAKE_BUILD_TYPE=Release -f ../CMakeLists_wasm.txt ..
+cp ../CMakeLists_wasm.txt CMakeLists.txt
+emcmake cmake -DCMAKE_BUILD_TYPE=Release .
 
 echo "🔨 Building WebAssembly module..."
 

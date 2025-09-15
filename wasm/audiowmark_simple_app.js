@@ -13,10 +13,13 @@ class SimpleAudioWmarkApp {
         this.sampleRate = 44100;
         this.frameSize = 512;
         this.isInitialized = false;
+        this.useAudioWorklets = true; // Prefer AudioWorklets, fallback to ScriptProcessorNode
         
         // Sender state
         this.senderActive = false;
         this.oscillator = null;
+        this.audioBufferSource = null;
+        this.currentAudioBuffer = null;
         this.senderGain = null;
         this.senderProcessor = null;
         
@@ -44,7 +47,12 @@ class SimpleAudioWmarkApp {
                 await this.waitForModule();
             }
             
-            // Load WebAssembly module
+            // Load the WASM binary for use in AudioWorklet
+            const wasmResponse = await fetch('./audiowmark.wasm');
+            this.wasmBinary = await wasmResponse.arrayBuffer();
+            console.log('WASM binary loaded for AudioWorklet');
+            
+            // Load WebAssembly module for main thread
             this.wasmModule = await AudioWmarkModule();
             console.log('AudioWmark WASM module loaded successfully');
             
@@ -170,7 +178,17 @@ class SimpleAudioWmarkApp {
         this.sampleRate = this.audioContext.sampleRate;
         this.frameSize = this.wasmFunctions.getRecommendedFrameSize();
         
-        console.log(`Audio context initialized successfully: ${this.sampleRate}Hz, frame size: ${this.frameSize}, state: ${this.audioContext.state}`);
+        // Load AudioWorklet processors
+        try {
+            await this.audioContext.audioWorklet.addModule('./watermark-sender-processor.js');
+            await this.audioContext.audioWorklet.addModule('./watermark-receiver-processor.js');
+            console.log('AudioWorklet processors loaded successfully');
+        } catch (error) {
+            console.warn('Failed to load AudioWorklet processors, falling back to ScriptProcessorNode:', error);
+            this.useAudioWorklets = false;
+        }
+        
+        console.log(`Audio context initialized successfully: ${this.sampleRate}Hz, frame size: ${this.frameSize}, state: ${this.audioContext.state}, AudioWorklets: ${this.useAudioWorklets !== false ? 'enabled' : 'disabled'}`);
     }
     
     initializeUI() {
@@ -205,6 +223,19 @@ class SimpleAudioWmarkApp {
                 this.senderGain.gain.value = value / 100;
             }
         });
+        
+        // Audio source selection
+        const audioSourceInputs = document.querySelectorAll('input[name="audio-source"]');
+        audioSourceInputs.forEach(input => {
+            input.addEventListener('change', () => this.handleAudioSourceChange());
+        });
+        
+        // File input
+        const audioFileInput = document.getElementById('audio-file');
+        audioFileInput.addEventListener('change', (e) => this.handleFileSelection(e));
+        
+        // Initialize audio source display
+        this.handleAudioSourceChange();
         
         console.log('Event listeners setup complete');
     }
@@ -256,26 +287,176 @@ class SimpleAudioWmarkApp {
     }
     
     async setupSenderAudio() {
-        const frequency = parseInt(document.getElementById('tone-frequency').value) || 440;
+        const audioSource = document.querySelector('input[name="audio-source"]:checked').value;
         const volume = parseInt(document.getElementById('sender-volume').value) / 100;
         
-        console.log(`Setting up sender audio: ${frequency}Hz, volume: ${volume}`);
+        console.log(`Setting up sender audio: source=${audioSource}, volume=${volume}`);
+        
+        // Create gain node for volume control
+        this.senderGain = this.audioContext.createGain();
+        this.senderGain.gain.setValueAtTime(volume, this.audioContext.currentTime);
+        
+        // Setup the appropriate audio source
+        if (audioSource === 'tone') {
+            await this.setupToneSource();
+        } else if (audioSource === 'recording') {
+            await this.setupRecordingSource();
+        }
+        
+        // Try to use AudioWorklet, fallback to ScriptProcessorNode
+        if (this.useAudioWorklets !== false) {
+            try {
+                await this.setupSenderAudioWorklet();
+            } catch (error) {
+                console.warn('AudioWorklet setup failed, falling back to ScriptProcessorNode:', error);
+                this.setupSenderScriptProcessor();
+            }
+        } else {
+            this.setupSenderScriptProcessor();
+        }
+        
+        // Connect audio graph: source -> processor -> gain -> destination
+        if (this.oscillator) {
+            this.oscillator.connect(this.senderProcessor);
+        } else if (this.audioBufferSource) {
+            this.audioBufferSource.connect(this.senderProcessor);
+        }
+        this.senderProcessor.connect(this.senderGain);
+        this.senderGain.connect(this.audioContext.destination);
+        
+        // Start audio source
+        if (this.oscillator) {
+            this.oscillator.start();
+        } else if (this.audioBufferSource) {
+            this.audioBufferSource.start();
+            
+            // Setup loop for continuous playback
+            this.audioBufferSource.loop = true;
+        }
+        
+        console.log('Sender audio setup complete');
+    }
+    
+    async setupToneSource() {
+        const frequency = parseInt(document.getElementById('tone-frequency').value) || 440;
         
         // Create oscillator for test tone
         this.oscillator = this.audioContext.createOscillator();
         this.oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
         this.oscillator.type = 'sine';
         
-        // Create gain node for volume control
-        this.senderGain = this.audioContext.createGain();
-        this.senderGain.gain.setValueAtTime(volume, this.audioContext.currentTime);
+        console.log(`Created tone source: ${frequency}Hz`);
+    }
+    
+    async setupRecordingSource() {
+        if (!this.currentAudioBuffer) {
+            throw new Error('No audio file loaded. Please select an audio file first.');
+        }
         
-        // Create ScriptProcessorNode for watermarking
-        const bufferSize = 4096; // Use a larger buffer size for stability
+        // Create audio buffer source node
+        this.audioBufferSource = this.audioContext.createBufferSource();
+        this.audioBufferSource.buffer = this.currentAudioBuffer;
+        
+        console.log(`Created recording source: ${this.currentAudioBuffer.duration.toFixed(2)}s, ${this.currentAudioBuffer.sampleRate}Hz`);
+    }
+    
+    handleAudioSourceChange() {
+        const audioSource = document.querySelector('input[name="audio-source"]:checked').value;
+        const toneControls = document.getElementById('tone-controls');
+        const recordingControls = document.getElementById('recording-controls');
+        
+        if (audioSource === 'tone') {
+            toneControls.style.display = 'block';
+            recordingControls.style.display = 'none';
+        } else {
+            toneControls.style.display = 'none';
+            recordingControls.style.display = 'block';
+        }
+    }
+    
+    async handleFileSelection(event) {
+        const file = event.target.files[0];
+        if (!file) {
+            this.currentAudioBuffer = null;
+            this.updateFileInfo('');
+            return;
+        }
+        
+        try {
+            console.log(`Loading audio file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+            this.updateFileInfo('Loading...');
+            
+            // Read file as array buffer
+            const arrayBuffer = await file.arrayBuffer();
+            
+            // Decode audio data
+            if (!this.audioContext) {
+                await this.initializeAudioContext();
+            }
+            
+            this.currentAudioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+            
+            const duration = this.currentAudioBuffer.duration.toFixed(2);
+            const sampleRate = this.currentAudioBuffer.sampleRate;
+            const channels = this.currentAudioBuffer.numberOfChannels;
+            
+            this.updateFileInfo(`${file.name} - ${duration}s, ${sampleRate}Hz, ${channels} channel(s)`);
+            console.log(`Audio file loaded successfully: ${duration}s, ${sampleRate}Hz, ${channels} channels`);
+            
+        } catch (error) {
+            console.error('Error loading audio file:', error);
+            this.updateFileInfo('Error loading file: ' + error.message);
+            this.currentAudioBuffer = null;
+        }
+    }
+    
+    updateFileInfo(text) {
+        const fileInfo = document.getElementById('file-info');
+        fileInfo.textContent = text;
+        fileInfo.className = text ? 'file-info show' : 'file-info';
+    }
+    
+    async setupSenderAudioWorklet() {
+        // Create AudioWorkletNode
+        this.senderProcessor = new AudioWorkletNode(this.audioContext, 'watermark-sender', {
+            numberOfInputs: 1,
+            numberOfOutputs: 1,
+            channelCount: 1
+        });
+        
+        // Setup message handling
+        this.senderProcessor.port.onmessage = (event) => {
+            const data = event.data;
+            switch (data.type) {
+                case 'initialized':
+                    if (data.success) {
+                        console.log('Sender AudioWorklet initialized successfully');
+                    } else {
+                        console.error('Sender AudioWorklet initialization failed:', data.error);
+                    }
+                    break;
+            }
+        };
+        
+        // Initialize the worklet
+        this.senderProcessor.port.postMessage({
+            type: 'init',
+            frameSize: this.frameSize,
+            message: this.currentMessage || 'Demo Message',
+            strength: 0.1,
+            wasmBinary: this.wasmBinary
+        });
+        
+        console.log('Sender AudioWorklet created');
+    }
+    
+    setupSenderScriptProcessor() {
+        // Fallback to ScriptProcessorNode
+        const bufferSize = 4096;
         this.senderProcessor = this.audioContext.createScriptProcessor(bufferSize, 1, 1);
         
         // Allocate WASM memory for audio processing
-        const inputPtr = this.wasmModule._malloc(bufferSize * 4); // 4 bytes per float
+        const inputPtr = this.wasmModule._malloc(bufferSize * 4);
         const outputPtr = this.wasmModule._malloc(bufferSize * 4);
         
         this.senderProcessor.onaudioprocess = (event) => {
@@ -323,19 +504,11 @@ class SimpleAudioWmarkApp {
             }
         };
         
-        // Connect audio graph: oscillator -> processor -> gain -> destination
-        this.oscillator.connect(this.senderProcessor);
-        this.senderProcessor.connect(this.senderGain);
-        this.senderGain.connect(this.audioContext.destination);
-        
-        // Start oscillator
-        this.oscillator.start();
-        
         // Store pointers for cleanup
         this.senderProcessor.inputPtr = inputPtr;
         this.senderProcessor.outputPtr = outputPtr;
         
-        console.log('Sender audio setup complete');
+        console.log('Sender ScriptProcessorNode created (fallback)');
     }
     
     async startReceiver() {
@@ -391,7 +564,65 @@ class SimpleAudioWmarkApp {
     async setupReceiverAudio() {
         const micSource = this.audioContext.createMediaStreamSource(this.micStream);
         
-        // Create ScriptProcessorNode for detection
+        // Try to use AudioWorklet, fallback to ScriptProcessorNode
+        if (this.useAudioWorklets !== false) {
+            try {
+                await this.setupReceiverAudioWorklet();
+            } catch (error) {
+                console.warn('AudioWorklet setup failed, falling back to ScriptProcessorNode:', error);
+                this.setupReceiverScriptProcessor();
+            }
+        } else {
+            this.setupReceiverScriptProcessor();
+        }
+        
+        micSource.connect(this.receiverProcessor);
+        // Don't connect to destination - we're just analyzing
+        
+        console.log('Receiver audio setup complete');
+    }
+    
+    async setupReceiverAudioWorklet() {
+        // Create AudioWorkletNode
+        this.receiverProcessor = new AudioWorkletNode(this.audioContext, 'watermark-receiver', {
+            numberOfInputs: 1,
+            numberOfOutputs: 0, // No output needed for detection
+            channelCount: 1
+        });
+        
+        // Setup message handling
+        this.receiverProcessor.port.onmessage = (event) => {
+            const data = event.data;
+            switch (data.type) {
+                case 'initialized':
+                    if (data.success) {
+                        console.log('Receiver AudioWorklet initialized successfully');
+                    } else {
+                        console.error('Receiver AudioWorklet initialization failed:', data.error);
+                    }
+                    break;
+                case 'frameUpdate':
+                    this.framesProcessed = data.frameCount;
+                    this.updateFrameCounter();
+                    break;
+                case 'detection':
+                    this.handleWorkletDetection(data);
+                    break;
+            }
+        };
+        
+        // Initialize the worklet
+        this.receiverProcessor.port.postMessage({
+            type: 'init',
+            frameSize: this.frameSize,
+            wasmBinary: this.wasmBinary
+        });
+        
+        console.log('Receiver AudioWorklet created');
+    }
+    
+    setupReceiverScriptProcessor() {
+        // Fallback to ScriptProcessorNode
         const bufferSize = 4096;
         this.receiverProcessor = this.audioContext.createScriptProcessor(bufferSize, 1, 1);
         
@@ -424,12 +655,21 @@ class SimpleAudioWmarkApp {
             }
         };
         
-        micSource.connect(this.receiverProcessor);
-        // Don't connect to destination - we're just analyzing
-        
         this.receiverProcessor.inputPtr = inputPtr;
         
-        console.log('Receiver audio setup complete');
+        console.log('Receiver ScriptProcessorNode created (fallback)');
+    }
+    
+    handleWorkletDetection(data) {
+        // Handle detection results from AudioWorklet
+        const sensitivityThreshold = parseFloat(document.getElementById('detection-sensitivity').value);
+        
+        console.log(`AudioWorklet detection: message="${data.message}", confidence=${data.confidence}, threshold=${sensitivityThreshold}`);
+        
+        if (data.confidence >= sensitivityThreshold) {
+            this.showDetectionResult(data.message, data.confidence);
+            console.log(`Watermark detected via AudioWorklet: "${data.message}" (confidence: ${data.confidence.toFixed(2)})`);
+        }
     }
     
     startDetectionPolling() {
@@ -514,12 +754,23 @@ class SimpleAudioWmarkApp {
             this.oscillator = null;
         }
         
+        if (this.audioBufferSource) {
+            this.audioBufferSource.stop();
+            this.audioBufferSource = null;
+        }
+        
         if (this.senderProcessor) {
-            this.senderProcessor.disconnect();
-            if (this.senderProcessor.inputPtr) {
+            // Cleanup AudioWorklet or ScriptProcessorNode
+            if (this.senderProcessor.port) {
+                // AudioWorklet cleanup
+                this.senderProcessor.port.postMessage({ type: 'destroy' });
+            } else if (this.senderProcessor.inputPtr) {
+                // ScriptProcessorNode cleanup
                 this.wasmModule._free(this.senderProcessor.inputPtr);
                 this.wasmModule._free(this.senderProcessor.outputPtr);
             }
+            
+            this.senderProcessor.disconnect();
             this.senderProcessor = null;
         }
         
@@ -548,10 +799,16 @@ class SimpleAudioWmarkApp {
         }
         
         if (this.receiverProcessor) {
-            this.receiverProcessor.disconnect();
-            if (this.receiverProcessor.inputPtr) {
+            // Cleanup AudioWorklet or ScriptProcessorNode
+            if (this.receiverProcessor.port) {
+                // AudioWorklet cleanup
+                this.receiverProcessor.port.postMessage({ type: 'destroy' });
+            } else if (this.receiverProcessor.inputPtr) {
+                // ScriptProcessorNode cleanup
                 this.wasmModule._free(this.receiverProcessor.inputPtr);
             }
+            
+            this.receiverProcessor.disconnect();
             this.receiverProcessor = null;
         }
         

@@ -119,6 +119,49 @@
             border-color: #4299e1;
         }
 
+        .radio-group {
+            display: flex;
+            gap: 20px;
+            margin-top: 8px;
+        }
+
+        .radio-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-weight: normal;
+            margin-bottom: 0;
+        }
+
+        .radio-label input[type="radio"] {
+            margin-right: 8px;
+            width: auto;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .file-info {
+            margin-top: 8px;
+            padding: 8px;
+            background: #f7fafc;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #4a5568;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
         .button {
             background: linear-gradient(135deg, #4299e1, #3182ce);
             color: white;
@@ -328,7 +371,6 @@
         <div>
             <h2>🎵 AudioWmark Ready</h2>
             <p>Click the button below to enable audio processing</p>
-            <p><small>(Required by browser security policy)</small></p>
             <button id="enable-audio" class="primary-button">Enable Audio & Start App</button>
         </div>
     </div>        <div id="main-content" style="display: none;">
@@ -346,6 +388,20 @@
                     </div>
 
                     <div class="form-group">
+                        <label>Audio Source:</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="audio-source" value="tone" checked>
+                                Test Tone
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="audio-source" value="recording">
+                                Audio Recording
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="tone-controls">
                         <label for="tone-frequency">Test Tone Frequency (Hz):</label>
                         <select id="tone-frequency">
                             <option value="440">440 Hz (A4)</option>
@@ -353,6 +409,12 @@
                             <option value="659">659 Hz (E5)</option>
                             <option value="880">880 Hz (A5)</option>
                         </select>
+                    </div>
+
+                    <div class="form-group" id="recording-controls" style="display: none;">
+                        <label for="audio-file">Select Audio File:</label>
+                        <input type="file" id="audio-file" accept="audio/*">
+                        <div id="file-info" class="file-info"></div>
                     </div>
 
                     <div class="audio-controls">
